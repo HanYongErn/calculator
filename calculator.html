@@ -13,7 +13,8 @@
 <body>
     <div class="calculator">
         <div class="container">
-            <div class="display">0</div>
+            <div class="display-top">0</div>
+            <div class="display-bottom">0</div>
         </div>
         <div class="container-bottom">
             <div class="num-container">
@@ -26,9 +27,9 @@
                 <button id="3" class="numbers">3</button>
                 <button id="2" class="numbers">2</button>
                 <button id="1" class="numbers">1</button>
-                <button data-action="plus-minus" class="numbers plus-minus">+/-</button>
+                <button id="dot" class="numbers">.</button>
                 <button id="0" class="numbers">0</button>
-                <button data-action="dot" class="numbers">.</button>
+                <button id="back" class="numbers back">DEL</button>
             </div>
             <div class="op-container">
                 <button data-action="clear" class="clear">A/C</button>
@@ -36,7 +37,7 @@
                 <button data-action="subtract" class="operators">-</button>
                 <button data-action="multiply" class="operators">×</button>
                 <button data-action="divide" class="operators">÷</button>
-                <button data-action="equals" class="equals">=</button>
+                <button id="equals" class="equals">=</button>
             </div>
         </div>
     </div>
