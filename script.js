@@ -1,5 +1,6 @@
 const keys = document.querySelector('.container-bottom');
-const display = document.querySelector('.display');
+const display = document.querySelector('.display-bottom');
+const steps = document.querySelector('.display-top');
 const calculator = document.querySelector('.calculator');
 const previousKey = calculator.dataset.previousKey;
 
@@ -12,70 +13,48 @@ keys.addEventListener('click', e => {
         let first = calculator.dataset.first;
         let operator = calculator.dataset.operator;
         let second = displayed
-        console.log(calculator.dataset.previousKey);
-        //when a number is clicked, display number
-        if (!action) {
-            if (displayed === '0' || calculator.dataset.previousKey === 'operators') {
-                display.textContent = keyContent;
-                calculator.dataset.previousKey = 'numbers'
-            } else {
-                display.textContent += keyContent;
-            }
-        }
-        //when action is clicked, remember action
-        if (action === 'add' || action === 'subtract' ||
-            action === 'multiply' || action === 'divide') {
-            if (first && operator && calculator.dataset.previousKey !== 'operators') {
-                const temporaryCalc = calculate(first, operator, second);
-                if (temporaryCalc === 'ERROR') {
-                    delete calculator.dataset.first;
-                } else calculator.dataset.first = temporaryCalc;
-                display.textContent = temporaryCalc;
-            } else {
-                calculator.dataset.first = displayed;
-            }
-            console.log(action);
-            calculator.dataset.operator = action;
-            calculator.dataset.previousKey = 'operators';
-        }
-        //add/remove negative in front of number
-        if (action === 'plus-minus') {
-            display.textContent = displayed * -1;
-            calculator.dataset.previousKey = 'plus-minus';
-        }
-        //decimals, prevent more than one decimal
-        if (action === 'dot') {
-            if (calculator.dataset.previousKey === 'operators') {
+
+        console.log(calculator.dataset.previousKey === 'equals');
+        //display
+        if (keyContent === '.') {
+            if (displayed === '0' || calculator.dataset.previousKey === 'equals') {
                 display.textContent = '0.';
-            } else if (!displayed.includes('.')) {
+                console.log(display.textContent);
+                calculator.dataset.previousKey = 'input';
+            } else if (checkDecimal(displayed)) {
+                //check current number got decimal or not
                 display.textContent += '.';
             }
-            calculator.dataset.previousKey = 'dot';
-        }
-        //when equal sign is clicked, calculate
-        if (action === 'equals') {
-            first = calculator.dataset.first;
-            operator = calculator.dataset.operator;
-            second = displayed;
-            if (!operator) {
-                display.textContent = displayed;
-                console.log(display.textContent);
-            } else if (first && operator && calculator.dataset.previousKey !== 'operators') {
-                const temporaryCalc = calculate(first, operator, second);
-                display.textContent = temporaryCalc;
-                if (temporaryCalc === 'ERROR') {
-                    delete calculator.dataset.first;
-                } else calculator.dataset.first = temporaryCalc;
+        } else if (displayed === '0' && (keyContent === '+' || keyContent === '-')) {
+            //allow + and - be the first but prevent × and ÷ 
+            display.textContent = keyContent;
+        } else if (displayed === '0' || calculator.dataset.previousKey === 'equals') {
+            if (action) {
+                //continue calculating with previous answer
+                display.textContent += keyContent;
             } else {
-                display.textContent = calculate(first, operator, second);
+                //start a new calculation
+                display.textContent = keyContent;
             }
-            calculator.dataset.previousKey = 'operators';
-            delete calculator.dataset.first;
-            delete calculator.dataset.operator;
+            calculator.dataset.previousKey = 'input';
+        } else if (keyContent === 'DEL') {
+            //"backspace"
+            display.textContent = displayed.slice(0, -1);
+        } else {
+            display.textContent += keyContent;
         }
-        //reset calculator
+
+        //calculate
+        if (keyContent === '=') {
+            steps.textContent = displayed;
+            display.textContent = calculate(displayed);
+            calculator.dataset.previousKey = 'equals';
+        }
+
+        //clear
         if (action === 'clear') {
             display.textContent = 0;
+            steps.textContent = 0;
             delete calculator.dataset.previousKey;
             delete calculator.dataset.first;
             delete calculator.dataset.operator;
@@ -83,23 +62,145 @@ keys.addEventListener('click', e => {
     }
 })
 
-function calculate(n1, op, n2) {
-    n1 = parseFloat(n1);
-    n2 = parseFloat(n2);
-    let result = '';
-    if (op === 'add') {
-        result = n1 + n2;
-    } else if (op === 'subtract') {
-        result = n1 - n2;
-    } else if (op === 'multiply') {
-        result = n1 * n2;
-    } else if (op === 'divide') {
-        if (n2 === 0) {
-            return result = 'ERROR'
-        } else result = n1 / n2;
+//check current number got decimal or not
+function checkDecimal(str) {
+    let value = values(str);
+    if (!value[value.length - 1].includes('.')) {
+        return true;
     }
-    if (result.toString().length > 13) {
-        result = result.toString().slice(0, 13);
+}
+
+//separate numbers by operators and put into array
+function values(str) {
+    let value = [];
+    let prev;
+    for (let i = 0; i < str.length; i++) {
+        if (str[i] === '+' || str[i] === '-' ||
+            str[i] === '×' || str[i] === '÷') {
+            str = str.slice(0, i) + '|' + str.slice(i + 1);
+        }
     }
-    return result;
+    value = str.split('|');
+    return value;
+}
+
+function calculate(input) {
+    //calculate separately in "× ÷ - +" order
+    let equation = [];
+    let temporaryAns;
+    for (let i = 0; i < input.length; i++) {
+        //do × and ÷ first
+        if (input[i] === '×') {
+            //multiply
+            //prevent ×÷
+            if (input[i + 1] === '÷') {
+                return 'ERROR';
+            } else if ((input[i + 1] === '+' || input[i + 1] === '-') && input[i + 2]) {
+                //put negative to front
+                input = input[i + 1] + input.slice(0, i + 1) + input.slice(i + 2);
+            }
+            console.log(input);
+            equation[0] = checkAdjacentNum(input, -1, 0, i - 1);
+            equation[1] = checkAdjacentNum(input, 1, i + 1, input.length);
+            temporaryAns = equation[0] * equation[1];
+            input = input.slice(0, i - equation[0].length) +
+                temporaryAns + input.slice(i + equation[1].length + 1);
+            i = 0;
+            console.log(equation);
+        } else if (input[i] === '÷') {
+            //divide
+            //prevent ÷×
+            if (input[i + 1] === '×') {
+                return 'ERROR';
+            }
+            equation[0] = checkAdjacentNum(input, -1, 0, i - 1);
+            equation[1] = checkAdjacentNum(input, 1, i + 1, input.length);
+            console.log(equation);
+            temporaryAns = equation[0] / equation[1];
+            if (equation[1] === '0') {
+                return 'ERROR';
+            } else input = input.slice(0, i - equation[0].length) +
+                temporaryAns + input.slice(i + equation[1].length + 1);
+            i = 0;
+        }
+    }
+    for (let i = 0; i < input.length; i++) {
+        if (input[i] === '-') {
+            //merge - and + (-+ and +- becomes -)
+            if (input[i - 1] === '+') {
+                input = input.slice(0, i - 1) + input.slice(i);
+                i -= 1;
+            } else if (input[i + 1] === '+') {
+                input = input.slice(0, i + 1) + input.slice(i + 2);
+            }
+            //subtract
+            equation[0] = checkAdjacentNum(input, -1, 0, i - 1);
+            equation[1] = checkAdjacentNum(input, 1, i + 1, input.length);
+            temporaryAns = equation[0] - equation[1];
+            if (i === 0 || i === input.length) {
+                break;
+            } else if (temporaryAns < 0) {
+                console.log(equation);
+                console.log(input.slice(0, i - equation[0].length - 1));
+                if (input.indexOf(equation[0]) === 0 && equation[0] !== '0') {
+                    input = temporaryAns;
+                } else {
+                    input = input.slice(0, i - equation[0].length - 1) +
+                    temporaryAns + input.slice(i + equation[1].length + 1);
+                    i = 0;
+                }
+            } else {
+                input = input.slice(0, i - equation[0].length) +
+                temporaryAns + input.slice(i + equation[1].length + 1);
+            }
+        }
+    }
+    for (let i = 0; i < input.length; i++) {
+        if (input[i] === String.fromCharCode(43)) {
+            //merge - and + (-+ and +- becomes -)
+            if (input[i - 1] === '-') {
+                input = input.slice(0, i - 1) + input.slice(i);
+            } else if (input[i + 1] === '-') {
+                input = input.slice(0, i + 1) + input.slice(i + 2);
+            }
+            //add
+            console.log(input);
+            equation[0] = checkAdjacentNum(input, -1, 0, i - 1);
+            equation[1] = checkAdjacentNum(input, 1, i + 1, input.length);
+            if (input[0] === '-') {
+                temporaryAns = equation[1] - equation[0];
+                input = input.slice(0, i - equation[0].length - 1) +
+                    temporaryAns + input.slice(i + equation[1].length + 1);
+            } else {
+                temporaryAns = +equation[0] + +equation[1];
+                input = input.slice(0, i - equation[0].length) +
+                    temporaryAns + input.slice(i + equation[1].length + 1);
+            }
+            i = 0;
+        }
+    }
+    return input;
+}
+
+//check numbers before and after operator
+function checkAdjacentNum(str, check, start, end) {
+    if (check === -1) { //check number before operator
+        for (let i = end; i >= start; i--) {
+            if (str[i] === '+' || str[i] === '-' ||
+                str[i] === '×' || str[i] === '÷') {
+                console.log(str.slice(i + 1, end + 1));
+                return str.slice(i + 1, end + 1);
+            }
+        }
+        return str.slice(0, end + 1);
+    }
+    if (check === 1) { //check number after operator
+        for (let i = start; i <= end; i++) {
+            if (str[i] === '+' || str[i] === '-' ||
+                str[i] === '×' || str[i] === '÷') {
+                return str.slice(start, i);
+            }
+        }
+        return str.slice(start, end);
+    }
 }
